@@ -1,0 +1,88 @@
+name: PlatformIO CI
+
+concurrency:
+  group: ci-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+on:
+  # Triggers the workflow on push but only for the main branch
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - version.properties
+
+  # Note: This is different from "pull_request". Need to specify ref when doing checkouts.
+  pull_request_target:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+
+  workflow_dispatch:
+
+jobs:
+  build-dfrobot_firebeetle2_esp32e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          sudo apt-get -y update --fix-missing
+          sudo apt-get install -y cppcheck libbluetooth-dev libgpiod-dev libyaml-cpp-dev inkscape
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Upgrade python tools
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -U --no-build-isolation --no-cache-dir "setuptools<72"
+          pip install -U --no-build-isolation platformio adafruit-nrfutil
+          pip install -U --no-build-isolation Pillow
+
+      - name: Upgrade platformio
+        shell: bash
+        run: |
+          pio upgrade
+
+      - name: Generate icons
+        shell: bash
+        run: |
+          pushd icons
+          chmod +x ./svg_to_headers.sh
+          for input in 24 32 48 128 196; do
+            sh ./svg_to_headers.sh "$input"
+          done
+          popd
+
+          rm -rf lib/display-assets/icons
+          mv icons/icons lib/display-assets/
+
+      - name: Build PlatformIO Project
+        run: pio run
+
+      - name: Set outputs
+        id: commit
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Store binaries as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-esp32e-dfrobot_firebeetle2_esp32e-${{ steps.commit.outputs.sha_short }}.zip
+          overwrite: true
+          path: |
+            .pio/build/*/*.bin
+            .pio/build/*/*.elf
