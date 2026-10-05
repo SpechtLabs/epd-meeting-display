@@ -1,0 +1,57 @@
+# .mise.toml — local tooling, exact pins (repo convention)
+#
+# The tasks below define how the firmware is built and checked. CI uses these
+# tasks. Renovate keeps every pin in this file current.
+
+[settings]
+# The pins below are the only source of tool versions.
+idiomatic_version_file_enable_tools = []
+
+[tools]
+# PlatformIO is a Python application. mise installs it into an isolated
+# environment of its own with uv, from the Python pinned here.
+python = "3.14.8"
+uv = "0.12.23"
+"pipx:platformio" = "6.2.0"
+
+# Linters
+yamllint = "1.38.0"
+actionlint = "1.7.12"
+# actionlint runs shellcheck on every `run:` script when it's on PATH, and
+# silently skips them when it isn't.
+shellcheck = "0.11.0"
+
+# Pins GitHub Actions to commit SHAs (see the update-gha task)
+pinact = "5.0.0"
+
+[tasks.build]
+description = "Build the firmware for every environment in platformio.ini into .pio/build/"
+run = "pio run"
+
+[tasks.upload]
+description = "Build the firmware and flash it to the board on the default serial port"
+run = "pio run --target upload"
+
+[tasks.monitor]
+description = "Open the board's serial console"
+run = "pio device monitor"
+
+[tasks.yaml-lint]
+description = "Lint every YAML file in the repository"
+run = "yamllint --strict ."
+
+[tasks.actionlint]
+description = "Lint the GitHub Actions workflows"
+run = "actionlint"
+
+[tasks.lint]
+description = "Lint YAML and workflows"
+depends = ["yaml-lint", "actionlint"]
+
+[tasks.check]
+description = "The definition of done: every gate CI runs"
+depends = ["lint", "build"]
+
+[tasks.update-gha]
+description = "Pin GitHub Actions to commit SHAs (Renovate keeps them current afterwards)"
+run = "pinact run"
