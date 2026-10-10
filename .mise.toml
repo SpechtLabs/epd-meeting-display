@@ -11,7 +11,7 @@ idiomatic_version_file_enable_tools = []
 # PlatformIO is a Python application. mise installs it into an isolated
 # environment of its own with uv, from the Python pinned here.
 python = "3.15.0"
-uv = "0.12.24"
+uv = "0.13.0"
 "pipx:platformio" = "6.2.0"
 
 # Linters
